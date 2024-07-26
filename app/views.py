@@ -1,9 +1,9 @@
+from django.core.mail import send_mail
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
-from django.http import HttpResponse
 from django.views.generic import TemplateView
-from django.core.mail import send_mail
 
 from app.forms import ProductModelForm, EmailForm
 from app.models import Product
@@ -35,13 +35,64 @@ from app.models import Product
 
 """ Method - 2 """
 
+# class ProductListView(View):
+#
+#     def get(self, request):
+#         page = request.GET.get('page', '')
+#         products = Product.objects.all().order_by('-id')
+#         paginator = Paginator(products, 2)
+#         try:
+#             page_obj = paginator.page(page)
+#         except PageNotAnInteger:
+#             page_obj = paginator.page(1)
+#         except EmptyPage:
+#             page_obj = paginator.page(paginator.num_pages)
+#
+#         context = {
+#             'products': products,
+#             'page_obj': page_obj,
+#
+#         }
+#         return render(request, 'product/index.html', context)
+
+
+"""Example Aggregate"""
+from django.db.models import Avg
+
+# class ProductListView(View):
+#     def get(self, request):
+#         page = request.GET.get('page', '')
+#         products = Product.objects.all().order_by('-id')
+#         paginator = Paginator(products, 2)
+#
+#         # Aggregate: Get the total number of products and average price
+#         product_stats = Product.objects.aggregate(total_products=Count('id'), average_price=Avg('price'))
+#
+#         try:
+#             page_obj = paginator.page(page)
+#         except PageNotAnInteger:
+#             page_obj = paginator.page(1)
+#         except EmptyPage:
+#             page_obj = paginator.page(paginator.num_pages)
+#
+#         context = {
+#             'products': products,
+#             'page_obj': page_obj,
+#             'total_products': product_stats['total_products'],
+#             'average_price': product_stats['average_price'],
+#         }
+#         return render(request, 'product/index.html', context)
+
+
+"""Example Annotate"""
+
 
 class ProductListView(View):
-
     def get(self, request):
         page = request.GET.get('page', '')
-        products = Product.objects.all().order_by('-id')
+        products = Product.objects.all().order_by('-id').annotate(average_rating=Avg('reviews__rating'))
         paginator = Paginator(products, 2)
+
         try:
             page_obj = paginator.page(page)
         except PageNotAnInteger:
@@ -52,7 +103,6 @@ class ProductListView(View):
         context = {
             'products': products,
             'page_obj': page_obj,
-
         }
         return render(request, 'product/index.html', context)
 
@@ -238,8 +288,8 @@ class EmailFormView(TemplateView):
     def post(self, request, *args, **kwargs):
         form = EmailForm(request.POST)
         if form.is_valid():
-            from_email= form.cleaned_data['from_email']
-            to_email= form.cleaned_data['to_email']
+            from_email = form.cleaned_data['from_email']
+            to_email = form.cleaned_data['to_email']
             subject = form.cleaned_data['subject']
             message = form.cleaned_data['message']
             send_mail(

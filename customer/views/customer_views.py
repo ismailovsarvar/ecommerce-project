@@ -131,6 +131,48 @@ class ExportDataTemplateView(TemplateView):
 
 """END TEMPLATE VIEW"""
 
+"""Example Annotate"""
+from django.db.models import Count, Avg
+from django.views.generic import ListView
+
+
+class CustomerListView(ListView):
+    model = Customer
+    template_name = 'customer/customer-list.html'
+    context_object_name = 'customers'
+
+    def get_queryset(self):
+        # Assume there is a related 'orders' field in Customer model
+        return Customer.objects.annotate(order_count=Count('orders')).all()
+
+
+"""Example Aggregate"""
+
+
+def export_data(request):
+    format = request.GET.get('format', 'csv')
+
+    # Customerlarni umumiy sonini olish
+    customer_stats = Customer.objects.aggregate(total_customers=Count('id'))
+
+    if format == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="customers.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'Full Name', 'Email', 'Phone Number', 'Address'])
+        for customer in Customer.objects.all():
+            writer.writerow([customer.id, customer.full_name, customer.email, customer.phone_number, customer.address])
+
+    elif format == 'json':
+        response = HttpResponse(content_type='application/json')
+        data = list(Customer.objects.all().values('full_name', 'email', 'phone_number', 'address'))
+        response.write(json.dumps(data, indent=4))
+        response['Content-Disposition'] = 'attachment; filename=customers.json'
+
+    response['X-Total-Customers'] = customer_stats['total_customers']
+
+    return response
+
 # def customers(request):
 #     page = request.GET.get('page', )
 #     customer_list = Customer.objects.all()
